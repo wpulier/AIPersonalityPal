@@ -2,13 +2,32 @@ import axios from 'axios';
 import { parseString } from 'xml2js';
 import { promisify } from 'util';
 
-const parseXml = promisify(parseString);
+const parseXml = promisify(parseString) as (xml: string) => Promise<any>;
 
 interface LetterboxdRating {
   title: string;
   rating: string;
   year: string;
   genres: string[];
+}
+
+interface LetterboxdItem {
+  title: [string];
+  letterboxd: [{
+    $: {
+      rating: string;
+    };
+  }];
+  filmYear: [string];
+  'letterboxd:filmGenres': [string];
+}
+
+interface LetterboxdFeed {
+  rss: {
+    channel: [{
+      item: LetterboxdItem[];
+    }];
+  };
 }
 
 interface LetterboxdSuccess {
@@ -64,12 +83,8 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         'Accept': 'application/rss+xml, application/xml, text/xml, */*'
       },
-      timeout: 10000 // 10 second timeout
+      timeout: 10000
     });
-
-    console.log('RSS response status:', response.status);
-    console.log('RSS response type:', response.headers['content-type']);
-    console.log('RSS content preview:', response.data.substring(0, 500));
 
     let result;
     try {
@@ -82,9 +97,9 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
       };
     }
 
-    console.log('Parsed RSS data structure:', Object.keys(result || {}));
+    const feed = result as unknown as LetterboxdFeed;
 
-    if (!result?.rss?.channel?.[0]) {
+    if (!feed?.rss?.channel?.[0]) {
       console.error('Invalid RSS structure:', JSON.stringify(result, null, 2));
       return {
         status: 'error',
@@ -92,11 +107,8 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
       };
     }
 
-    const channel = result.rss.channel[0];
-    console.log('Channel data structure:', Object.keys(channel || {}));
-
+    const channel = feed.rss.channel[0];
     const items = channel.item || [];
-    console.log('Found items:', items.length);
 
     if (items.length === 0) {
       console.error('No items found in RSS feed');
@@ -106,29 +118,19 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
       };
     }
 
-    // Collect all genres from all films
-    const genreFrequency: { [key: string]: number } = {};
+    const genreFrequency: Record<string, number> = {};
 
-    // Process recent films
     const recentRatings = items
-      .slice(0, 20) // Look at more items to get better genre data
-      .map((item: any): LetterboxdRating | null => {
+      .slice(0, 20)
+      .map((item: LetterboxdItem): LetterboxdRating | null => {
         try {
-          const filmTitle = item['letterboxd:filmTitle']?.[0];
-          const filmYear = item['letterboxd:filmYear']?.[0];
-          const rating = item['letterboxd:memberRating']?.[0];
-          const genres = item['letterboxd:filmGenres']?.[0]?.split(',').map((g: string) => g.trim()) || [];
+          const filmTitle = item.title[0];
+          const filmYear = item.filmYear[0];
+          const rating = item.letterboxd[0].$.rating;
+          const genres = item['letterboxd:filmGenres']?.[0]?.split(',').map((genre: string) => genre.trim()) || [];
 
-          // Count genre frequencies
-          genres.forEach((genre: string) => {
+          genres.forEach(genre => {
             genreFrequency[genre] = (genreFrequency[genre] || 0) + 1;
-          });
-
-          console.log('Processing film:', {
-            title: filmTitle,
-            year: filmYear,
-            rating: rating,
-            genres: genres
           });
 
           if (!filmTitle) return null;
@@ -137,16 +139,14 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
             title: filmTitle,
             rating: rating ? `${rating}/5` : 'Watched',
             year: filmYear || '',
-            genres: genres
+            genres
           };
         } catch (itemError) {
           console.error('Error processing item:', itemError);
           return null;
         }
       })
-      .filter((item): item is LetterboxdRating => item !== null);
-
-    console.log('Processed ratings:', recentRatings);
+      .filter((rating): rating is LetterboxdRating => rating !== null);
 
     if (recentRatings.length === 0) {
       console.error('No valid ratings found in profile');
@@ -156,27 +156,19 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
       };
     }
 
-    // Get favorite films (4.5+ star ratings)
     const favoriteFilms = recentRatings
-      .filter(r => parseFloat(r.rating) >= 4.5)
-      .map(r => r.title)
+      .filter(rating => parseFloat(rating.rating) >= 4.5)
+      .map(rating => rating.title)
       .slice(0, 5);
 
-    // Get favorite genres (most frequently rated genres)
     const favoriteGenres = Object.entries(genreFrequency)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([genre]) => genre);
 
-    console.log('Extracted data:', {
-      favoriteGenres,
-      favoriteFilms,
-      totalRatings: recentRatings.length
-    });
-
     return {
       status: 'success',
-      recentRatings: recentRatings.slice(0, 10), // Only return the 10 most recent
+      recentRatings: recentRatings.slice(0, 10),
       favoriteGenres,
       favoriteFilms
     };
@@ -187,6 +179,81 @@ export async function getLetterboxdProfile(url: string): Promise<LetterboxdResul
       `${error.message} (${error.name})` : 
       'Unknown error occurred';
 
+    return {
+      status: 'error',
+      error: errorMessage
+    };
+  }
+}
+
+export async function parseLetterboxdData(xml: string): Promise<LetterboxdSuccess | LetterboxdError> {
+  try {
+    const result = await parseXml(xml);
+    const feed = result as unknown as LetterboxdFeed;
+
+    if (!feed?.rss?.channel?.[0]?.item) {
+      return {
+        status: 'error',
+        error: 'Invalid RSS data structure'
+      };
+    }
+
+    const items = feed.rss.channel[0].item;
+    const genreFrequency: Record<string, number> = {};
+
+    const recentRatings = items
+      .slice(0, 20)
+      .map((item: LetterboxdItem): LetterboxdRating | null => {
+        try {
+          const filmTitle = item.title[0];
+          const filmYear = item.filmYear[0];
+          const rating = item.letterboxd[0].$.rating;
+          const genres = item['letterboxd:filmGenres']?.[0]?.split(',').map((genre: string) => genre.trim()) || [];
+
+          genres.forEach(genre => {
+            genreFrequency[genre] = (genreFrequency[genre] || 0) + 1;
+          });
+
+          if (!filmTitle) return null;
+
+          return {
+            title: filmTitle,
+            rating: rating ? `${rating}/5` : 'Watched',
+            year: filmYear || '',
+            genres
+          };
+        } catch (error) {
+          console.error('Error processing item:', error);
+          return null;
+        }
+      })
+      .filter((rating): rating is LetterboxdRating => rating !== null);
+
+    if (recentRatings.length === 0) {
+      return {
+        status: 'error',
+        error: 'No valid ratings found'
+      };
+    }
+
+    const favoriteFilms = recentRatings
+      .filter(r => parseFloat(r.rating) >= 4.5)
+      .map(r => r.title)
+      .slice(0, 5);
+
+    const favoriteGenres = Object.entries(genreFrequency)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([genre]) => genre);
+
+    return {
+      status: 'success',
+      recentRatings: recentRatings.slice(0, 10),
+      favoriteGenres,
+      favoriteFilms
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return {
       status: 'error',
       error: errorMessage

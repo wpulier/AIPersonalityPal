@@ -9,16 +9,38 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+interface SpotifyTrack {
+  name: string;
+  artist: string;
+}
+
+interface SpotifyData {
+  status: 'success';
+  topArtists: string[];
+  topGenres: string[];
+  recentTracks: SpotifyTrack[];
+}
+
+interface LetterboxdData {
+  status: 'success';
+  recentRatings: Array<{
+    title: string;
+    rating: string;
+  }>;
+  favoriteGenres: string[];
+  favoriteFilms: string[];
+}
+
 async function analyzePersonality(
   bio: string,
-  letterboxdData?: any,
-  spotifyData?: any
+  letterboxdData?: LetterboxdData,
+  spotifyData?: SpotifyData
 ): Promise<string> {
   const prompt = `Analyze this person's personality based on:
 Bio: ${bio}
 ${letterboxdData?.status === 'success' ? `
 Their movie preferences:
-- Recent ratings: ${letterboxdData.recentRatings.map(r => `${r.title} (${r.rating})`).join(', ')}
+- Recent ratings: ${letterboxdData.recentRatings.map(rating => `${rating.title} (${rating.rating})`).join(', ')}
 - Favorite genres: ${letterboxdData.favoriteGenres.join(', ')}
 - Favorite films: ${letterboxdData.favoriteFilms.join(', ')}
 ` : 'No movie preference data available.'}
@@ -26,16 +48,11 @@ ${spotifyData?.status === 'success' ? `
 Their music preferences:
 - Top artists: ${spotifyData.topArtists.join(', ')}
 - Favorite genres: ${spotifyData.topGenres.join(', ')}
-- Recent tracks: ${spotifyData.recentTracks.map(t => `${t.name} by ${t.artist}`).slice(0, 5).join(', ')}
-` : 'No music preference data available.'}
-
-Create a brief, realistic personality summary based ONLY on the information provided.
-If certain data is not available, focus only on the provided content.
-Do not make assumptions about interests or preferences unless explicitly shown in the data.
-Keep it to 2-3 concise sentences.`;
+- Recent tracks: ${spotifyData.recentTracks.map(track => `${track.name} by ${track.artist}`).slice(0, 5).join(', ')}
+` : 'No music preference data available.'}`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4",
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -84,7 +101,7 @@ Respond with JSON in this format: {
 }`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" }
   });
@@ -126,7 +143,7 @@ Remember to maintain your personality while responding to:
 ${message}`;
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4",
     messages: [{ role: "user", content: prompt }],
     stream: true
   });
