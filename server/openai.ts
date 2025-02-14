@@ -21,20 +21,22 @@ interface SpotifyTrack {
 }
 
 interface SpotifyData {
-  status: 'success';
-  topArtists: string[];
-  topGenres: string[];
-  recentTracks: SpotifyTrack[];
+  status: 'success' | 'error' | 'not_provided';
+  topArtists?: string[];
+  topGenres?: string[];
+  recentTracks?: SpotifyTrack[];
+  error?: string;
 }
 
 interface LetterboxdData {
-  status: 'success';
-  recentRatings: Array<{
+  status: 'success' | 'error' | 'not_provided';
+  recentRatings?: Array<{
     title: string;
     rating: string;
   }>;
-  favoriteGenres: string[];
-  favoriteFilms: string[];
+  favoriteGenres?: string[];
+  favoriteFilms?: string[];
+  error?: string;
 }
 
 async function analyzePersonality(
@@ -46,15 +48,15 @@ async function analyzePersonality(
 Bio: ${bio}
 ${letterboxdData?.status === 'success' ? `
 Their movie preferences:
-- Recent ratings: ${letterboxdData.recentRatings.map(rating => `${rating.title} (${rating.rating})`).join(', ')}
-- Favorite genres: ${letterboxdData.favoriteGenres.join(', ')}
-- Favorite films: ${letterboxdData.favoriteFilms.join(', ')}
+- Recent ratings: ${letterboxdData.recentRatings?.map(rating => `${rating.title} (${rating.rating})`).join(', ')}
+- Favorite genres: ${letterboxdData.favoriteGenres?.join(', ')}
+- Favorite films: ${letterboxdData.favoriteFilms?.join(', ')}
 ` : 'No movie preference data available.'}
 ${spotifyData?.status === 'success' ? `
 Their music preferences:
-- Top artists: ${spotifyData.topArtists.join(', ')}
-- Favorite genres: ${spotifyData.topGenres.join(', ')}
-- Recent tracks: ${spotifyData.recentTracks.map(track => `${track.name} by ${track.artist}`).slice(0, 5).join(', ')}
+- Top artists: ${spotifyData.topArtists?.join(', ')}
+- Favorite genres: ${spotifyData.topGenres?.join(', ')}
+- Recent tracks: ${spotifyData.recentTracks?.map(track => `${track.name} by ${track.artist}`).slice(0, 5).join(', ')}
 ` : 'No music preference data available.'}`;
 
   const response = await openai.chat.completions.create({
@@ -82,15 +84,15 @@ export async function generateTwinPersonality(
 Bio: ${bio}
 ${letterboxdData?.status === 'success' ? `
 Movie Preferences:
-- Recent ratings: ${letterboxdData.recentRatings.map((rating: LetterboxdRating) => `${rating.title} (${rating.rating})`).join(', ')}
-- Favorite genres: ${letterboxdData.favoriteGenres.join(', ')}
-- Favorite films: ${letterboxdData.favoriteFilms.join(', ')}
+- Recent ratings: ${letterboxdData.recentRatings?.map((rating: LetterboxdRating) => `${rating.title} (${rating.rating})`).join(', ')}
+- Favorite genres: ${letterboxdData.favoriteGenres?.join(', ')}
+- Favorite films: ${letterboxdData.favoriteFilms?.join(', ')}
 ` : 'No movie preference data available.'}
 ${spotifyData?.status === 'success' ? `
 Music Preferences:
-- Top artists: ${spotifyData.topArtists.join(', ')}
-- Favorite genres: ${spotifyData.topGenres.join(', ')}
-- Recent tracks: ${spotifyData.recentTracks.map((track: SpotifyTrack) => `${track.name} by ${track.artist}`).slice(0, 5).join(', ')}
+- Top artists: ${spotifyData.topArtists?.join(', ')}
+- Favorite genres: ${spotifyData.topGenres?.join(', ')}
+- Recent tracks: ${spotifyData.recentTracks?.map((track: SpotifyTrack) => `${track.name} by ${track.artist}`).slice(0, 5).join(', ')}
 ` : 'No music preference data available.'}
 
 Personality Analysis: ${personalityInsight}
