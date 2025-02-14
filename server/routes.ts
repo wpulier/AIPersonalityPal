@@ -20,6 +20,15 @@ declare module 'express-session' {
   }
 }
 
+interface UserProfile {
+  name: string;
+  bio: string;
+  letterboxdUrl?: string;
+  spotifyUrl?: string;
+  letterboxdData?: any;
+  spotifyData?: any;
+}
+
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
 

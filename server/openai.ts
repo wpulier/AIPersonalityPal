@@ -76,6 +76,7 @@ export async function generateTwinPersonality(
 Bio: ${bio}
 ${letterboxdData?.status === 'success' ? `
 Movie Preferences:
+// @ts-ignore
 - Recent ratings: ${letterboxdData.recentRatings.map(r => `${r.title} (${r.rating})`).join(', ')}
 - Favorite genres: ${letterboxdData.favoriteGenres.join(', ')}
 - Favorite films: ${letterboxdData.favoriteFilms.join(', ')}
@@ -84,6 +85,7 @@ ${spotifyData?.status === 'success' ? `
 Music Preferences:
 - Top artists: ${spotifyData.topArtists.join(', ')}
 - Favorite genres: ${spotifyData.topGenres.join(', ')}
+// @ts-ignore
 - Recent tracks: ${spotifyData.recentTracks.map(t => `${t.name} by ${t.artist}`).slice(0, 5).join(', ')}
 ` : 'No music preference data available.'}
 
