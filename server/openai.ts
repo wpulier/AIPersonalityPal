@@ -9,6 +9,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+interface LetterboxdRating {
+  title: string;
+  rating: string;
+  year?: string;
+}
+
 interface SpotifyTrack {
   name: string;
   artist: string;
@@ -62,8 +68,8 @@ Their music preferences:
 export async function generateTwinPersonality(
   name: string,
   bio: string,
-  letterboxdData?: any,
-  spotifyData?: any
+  letterboxdData?: LetterboxdData,
+  spotifyData?: SpotifyData
 ): Promise<{
   interests: string[];
   style: string;
@@ -76,8 +82,7 @@ export async function generateTwinPersonality(
 Bio: ${bio}
 ${letterboxdData?.status === 'success' ? `
 Movie Preferences:
-// @ts-ignore
-- Recent ratings: ${letterboxdData.recentRatings.map(r => `${r.title} (${r.rating})`).join(', ')}
+- Recent ratings: ${letterboxdData.recentRatings.map((rating: LetterboxdRating) => `${rating.title} (${rating.rating})`).join(', ')}
 - Favorite genres: ${letterboxdData.favoriteGenres.join(', ')}
 - Favorite films: ${letterboxdData.favoriteFilms.join(', ')}
 ` : 'No movie preference data available.'}
@@ -85,8 +90,7 @@ ${spotifyData?.status === 'success' ? `
 Music Preferences:
 - Top artists: ${spotifyData.topArtists.join(', ')}
 - Favorite genres: ${spotifyData.topGenres.join(', ')}
-// @ts-ignore
-- Recent tracks: ${spotifyData.recentTracks.map(t => `${t.name} by ${t.artist}`).slice(0, 5).join(', ')}
+- Recent tracks: ${spotifyData.recentTracks.map((track: SpotifyTrack) => `${track.name} by ${track.artist}`).slice(0, 5).join(', ')}
 ` : 'No music preference data available.'}
 
 Personality Analysis: ${personalityInsight}

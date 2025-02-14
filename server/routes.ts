@@ -23,8 +23,8 @@ declare module 'express-session' {
 interface UserProfile {
   name: string;
   bio: string;
-  letterboxdUrl?: string;
-  spotifyUrl?: string;
+  letterboxdUrl?: string | null;
+  spotifyUrl?: string | null;
   letterboxdData?: any;
   spotifyData?: any;
 }

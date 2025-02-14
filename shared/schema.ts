@@ -65,14 +65,11 @@ const spotifyUrlSchema = z.string().url().refine(
   { message: "Must be a valid Spotify profile URL (e.g., https://open.spotify.com/user/username)" }
 );
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  name: true,
-  letterboxdUrl: true,
-  bio: true,
-}).extend({
-  name: z.string().min(1).max(50),
-  letterboxdUrl: letterboxdUrlSchema.optional().or(z.literal("")),
-  bio: z.string()
+export const insertUserSchema = z.object({
+  name: z.string().min(1),
+  bio: z.string().min(1),
+  letterboxdUrl: z.string().nullable().optional(),
+  spotifyUrl: z.string().nullable().optional(),
 });
 
 export const insertMessageSchema = createInsertSchema(messages);
